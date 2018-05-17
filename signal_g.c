@@ -18,6 +18,7 @@ int main(int argc, char *argv[])
     for(i=0;i<10;i++)
     {
         r=rand()%3;
+        
 
         printf("rand : %d\n",r);
 
@@ -42,7 +43,7 @@ int main(int argc, char *argv[])
         printf("sig: %d\n",sig);
 
         kill(pid,sig);
-
+       
         sleep(1);
     }
 
