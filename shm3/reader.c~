@@ -1,0 +1,97 @@
+#include<stdio.h>
+#include<unistd.h>
+#include<stdlib.h>
+#include<string.h>
+#include<signal.h>
+#include<fcntl.h>
+
+#include<sys/types.h>
+#include<sys/shm.h>
+
+#define SHMSIZ 1024
+
+void sigint(int sig)
+{
+    printf("Shared Memory is already");
+}
+
+int main()
+{
+    int shmid;
+    int i,fd;
+    char buf[BUFSIZ];
+    void *shared_Mem=(void *)0;
+    char *shmaddr;
+
+    pid_t pid_p=getppid();
+    
+    signal(SIGINT, sigint);
+    
+
+    shmid=shmget((key_t)0x1234, sizeof(int)*SHMSIZ, 0666| IPC_CREAT);
+    
+
+    if(shmid==-1)
+    {
+        fprintf(stderr,"shmid error\n");
+        exit(EXIT_FAILURE);
+    }
+
+    shared_Mem = shmat(shmid, (void *)0,0);
+    if(shared_Mem== (void *)-1)
+    {
+        fprintf(stderr,"shared_Mem error\n");
+        exit(EXIT_FAILURE);
+    }
+
+    //shmaddr=(char *)malloc(sizeof(buf));
+    shmaddr = shared_Mem;
+
+    printf("open\n");
+    fd=open("./b.txt",O_RDWR|O_CREAT | O_TRUNC,S_IRWXU| S_IRWXG| S_IRWXO);
+    
+/*
+    for(i=0;i<1;i++)
+    {
+        //sprintf(buf,"%s",(char *)(shmaddr+i));
+        printf("%p data : %s\n",shmaddr,(char *)shmaddr);
+        strcpy(buf, (char *)shmaddr);
+        //printf("shmaddr %p = %s  buf: %s\n",shmaddr+i,(char *)(shmaddr+i),buf);
+        write(fd,buf,sizeof(buf));
+        kill(pid_p,SIGINT);
+        
+    }
+*/
+    
+    while(strcmp((char *)(shmaddr+0),"1"));
+    
+    while(!strcmp((char *)(shmaddr+2),"1"))
+    {
+        //sprintf(buf,"%s",(char *)(shmaddr+i));
+        //printf("%p data : %s\n",shmaddr+4,(char *)(shmaddr+4));
+        strcpy(buf, (char *)(shmaddr+4));
+        //printf("shmaddr %p = %s  buf: %s\n",shmaddr+i,(char *)(shmaddr+i),buf);
+        
+        printf("shm0 : %s\n",(char *)(shmaddr+0));
+        printf("shm2 : %s\n",(char *)shmaddr+2);
+        printf("%p data : %s\n",shmaddr+4,buf);
+        
+        write(fd,buf,sizeof(buf));
+        kill(pid_p,SIGINT);
+        
+    }
+
+    printf("write is finished\n");
+    //*(shmaddr+0) = 1;//flag로 공유메모리0번지가 1이면 부모 프로세서 가동
+    //sprintf(*(shmaddr+0),"1");
+
+    free(shmaddr);   
+
+    shmdt(shared_Mem);
+
+    close(fd);
+    
+    //kill(pid_p,SIGINT);
+
+    exit(EXIT_SUCCESS);
+}
