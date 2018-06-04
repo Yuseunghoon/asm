@@ -14,7 +14,8 @@ int main(void)
     int *shmaddr;
     int i;
 
-    // 1. shmget
+    // 1. shmget /making memory and check id
+    // using 0x---- the key number is more comfortable to check the memory
     shmid=shmget((key_t)1234, sizeof(int)*SHMSIZE, 0666 | IPC_CREAT);
     if(shmid== -1)
     {
@@ -22,7 +23,7 @@ int main(void)
         exit(EXIT_FAILURE);
     }
 
-    // 2. shmat
+    // 2. shmat / bring the shared memory matched with key_t
     shared_Mem = shmat(shmid,(void *)0, 0);
     if(shared_Mem ==(void *)-1)
     {
@@ -33,7 +34,7 @@ int main(void)
     printf("Memory attached at 0x%p\n",shared_Mem);
     shmaddr = (int *)shared_Mem;
 
-    // 3. memory access
+    // 3. memory access / put in the data to addr from the shared memory
     for(i=0;i<SHMSIZE;i++)
     {
         *(shmaddr+i)=i+1;
@@ -42,14 +43,14 @@ int main(void)
     
     sleep(4);
 
-    // 4. shmdt
+    // 4. shmdt / cut the shared memory in process
     if(shmdt(shared_Mem)==-1)
     {
         fprintf(stderr,"shmdt failed\n");
         exit(EXIT_FAILURE);
     }
 
-    // 5. shmctl : IPC_RMID
+    // 5. shmctl : IPC_RMID / remove the shared memory
     if(shmctl(shmid, IPC_RMID,0)==-1)
     {
         fprintf(stderr,"shmctl(IPC_RMID) failed\n");

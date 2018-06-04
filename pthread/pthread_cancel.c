@@ -45,7 +45,7 @@ void *thread_func(void *arg)
     //쓰레드에 대한 취소요청을 무시한다.
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
-    //쓰레드 종료시 호출될 함수 등록
+    //쓰레드 취소요청으로 종료시 호출될 함수 등록
     pthread_cleanup_push(clean_up,(void *)NULL);
 
     pthread_mutex_lock(&lmu);

@@ -24,9 +24,12 @@ int main(int argc, char **argv)
     //tzset();TZ변수를 설정한다
     tm = localtime(&UTCtime);//tm = gmtime(&UTCtime)
     printf("asctime : %s", asctime(tm));//현재의 시간을 tm 구조체를 이용해서 출력
-    strftime(buf, sizeof(buf), "%A %m %e %h:%s %Y", tm);//사용자 정의 문자열 정지
+    strftime(buf, sizeof(buf), "%A %m %e %H:%M:%S %Y", tm);//사용자 정의 문자열 정지
+    //날짜 일로 %e는 01은 \1, %d는 01로 나온다.
     printf("strftime : %s\n", buf);
-
+    
+    strftime(buf, sizeof(buf), "%Y%H%M%S", tm);//사용자 정의 문자열 정지
+    printf("atoi : %d\n",atoi(buf));
     return 0;
     
 }

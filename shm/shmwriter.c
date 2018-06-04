@@ -23,6 +23,7 @@ struct data_str{
 void shardMem()
 {    
     int i;
+    // 공유메모리 활성화
     shmid=shmget((key_t)1234, sizeof(int)*100, 0666 | IPC_CREAT);
 
     if(shmid==-1)
@@ -30,7 +31,7 @@ void shardMem()
         fprintf(stderr,"shmget failed\n");
         exit(EXIT_FAILURE);
     }
-
+    // 공유메모리 동기화
     shared_Mem = shmat(shmid, (void *)0,0);
     if(shared_Mem == (void *)-1)
     {
@@ -39,6 +40,8 @@ void shardMem()
     }
 
     printf("Memory attached\n");
+
+    // 공유메모리 주소값으로 값 입력
     shmaddr = (int *)shared_Mem;
 
     for(i=0;i<50;i++)
@@ -54,7 +57,7 @@ void shardMem()
 
 void sigint(int sig)
 {
-    printf("relese\n");
+    printf("release\n");
 }
 
 
@@ -70,7 +73,7 @@ int main()
     data.msg_type=1;
     data.pid=getpid();
 
-// frist write start
+// first write start
 // give write pid to reader
     msgsnd(msgid, (void *)&data, sizeof(data), 0);
     printf("shmw signal pid = %d\n",data.pid);
@@ -88,9 +91,11 @@ int main()
     kill(shmr_pid,SIGUSR1);
 
     pause();
-
+    
+    //공유메모리 비동기화
     shmdt(shared_Mem);
 
+    //공유메모리 삭제
     shmctl(shmid, IPC_RMID,0);
 
 
