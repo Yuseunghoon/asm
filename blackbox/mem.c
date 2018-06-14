@@ -99,7 +99,7 @@ int main()
                 per = 100* (float)(MP->size.avail)/MP->size.blocks;
                 printf("memory percent %f%\n",per);
                 
-                if(per<10)
+                if(per<11.4)
                 {
                     printf("###### memory waring\n");
                     fp=popen("ls -d */","r");

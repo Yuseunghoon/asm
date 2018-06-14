@@ -1,0 +1,1 @@
+cmd_/home/pi/asm/modules/gpio_module.ko := ld -EL -r  -T ./scripts/module-common.lds --build-id  -o /home/pi/asm/modules/gpio_module.ko /home/pi/asm/modules/gpio_module.o /home/pi/asm/modules/gpio_module.mod.o ;  true

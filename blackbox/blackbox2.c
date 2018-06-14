@@ -67,7 +67,7 @@ while(1)
     
     if(makefile==0)
     {
-        printf("%s file had made successful\n",filename);
+        printf("%s file had been successfully made\n",filename);
     }
     else if(makefile==-1)
     {
