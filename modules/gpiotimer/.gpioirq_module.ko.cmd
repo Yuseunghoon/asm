@@ -1,0 +1,1 @@
+cmd_/home/pi/asm/modules/gpiotimer/gpioirq_module.ko := ld -EL -r  -T ./scripts/module-common.lds --build-id  -o /home/pi/asm/modules/gpiotimer/gpioirq_module.ko /home/pi/asm/modules/gpiotimer/gpioirq_module.o /home/pi/asm/modules/gpiotimer/gpioirq_module.mod.o ;  true
