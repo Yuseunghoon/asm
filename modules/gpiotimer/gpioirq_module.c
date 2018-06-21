@@ -43,7 +43,7 @@ pid_t pid;
 char pid_valid;
 int key_value;
 
-
+// 모듈정보 등록
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("YSH");
 MODULE_DESCRIPTION("Raspberry Pi First Device Driver");
@@ -73,14 +73,16 @@ static void timer_func(unsigned long data)
 {
     printk(KERN_INFO "timer_func:%ld\n",data);
     
-    gpio_set_value(GPIO_LED,data);
+    // 일정시간에 맞게 LED가 켜지고 꺼지게 만듬
+    // 2개의 LED가 번갈아가며 깜빡거리기
+    gpio_set_value(GPIO_LED,data);// LED 핀의 OUTPUT 정의
     gpio_set_value(GPIO_LED2,!data);
     if(data)
         timer.data=0;
     else
         timer.data=1;
-    timer.expires=jiffies+(1*HZ);
-    add_timer(&timer);
+    timer.expires=jiffies+(1*HZ); // 1 초 뒤 실행
+    add_timer(&timer);// 커널 타이머에 호출될 timer 구조체 등록
 }
 
 static irqreturn_t isr_func(int irq, void *data)
@@ -90,16 +92,16 @@ static irqreturn_t isr_func(int irq, void *data)
     
     static struct siginfo sinfo;
     memset(&sinfo,0,sizeof(struct siginfo));
-    sinfo.si_signo = SIGIO;
+    sinfo.si_signo = SIGIO; // 시그널 지정
     sinfo.si_code = SI_USER;
 
-    send_sig_info(SIGIO,&sinfo,task);
+    send_sig_info(SIGIO,&sinfo,task); //sig_info 구조체를 이용하여 시그널 보내기
 
-    if(irq==switch_irq)
+    if(irq==switch_irq) // SW1이 눌렀을 때, key_value = 10
     {
         key_value=10;
     }
-    else if(irq==switch_irq2)
+    else if(irq==switch_irq2) // SW2이 눌렀을 때, key_value = 20
     {
         key_value=20;
     }
@@ -118,7 +120,7 @@ static irqreturn_t isr_func(int irq, void *data)
         task = pid_task(find_vpid(pid),PIDTYPE_PID);
         if(task != NULL)
         {
-            send_sig_info(SIGIO,&sinfo,task);
+            send_sig_info(SIGIO,&sinfo,task); //sig_info 구조체를 이용하여 시그널 보내기
         }
         else
         {
@@ -155,35 +157,41 @@ int GPIO_SET(int g)
     return g;
 }
 */
+
+// 유저단에서 open 함수 사용하면 작동
 static int gpio_open(struct inode *inod, struct file *fil)
 {
-    try_module_get(THIS_MODULE);
+    try_module_get(THIS_MODULE);//모듈 사용횟수 증가분을 측정
     printk(KERN_INFO "GPIO Device opened()\n");
     return 0;
 }
 
+// 유저단에서 close 함수 사용하면 작동
 static int gpio_close(struct inode *inod, struct file *fil)
 {
-    module_put(THIS_MODULE);
+    // 디바이스 드라이버는 제거되도 카운트는 남아있는다
+    // 시스템 초기화하기 전까지 카운트 초기화방법이 없기에 카운트 관리가 필요함
+    module_put(THIS_MODULE);//모듈 사용횟수 감소
     printk(KERN_INFO "GPIO Device Closed()\n");
     return 0;
 }
 
+// 유저단에서 write 함수 사용하면 작동
 static ssize_t gpio_write(struct file *inode, const char *buff, size_t len, loff_t *off)
 {
     short count;
     char *cmd, *str;
-    char *sep = ":";
+    char *sep = ":";// : 의 기준으로 버퍼값 앞 뒤 분리 및 구분
     char *endptr, *pidstr;
 
     memset(msg, 0, BUF_SIZE);
 
-    count = copy_from_user(msg, buff, len);
+    count = copy_from_user(msg, buff, len);// 유저단에서 값 가져오기
 
-    str=kstrdup(msg, GFP_KERNEL);
-    cmd = strsep(&str, sep);
+    str=kstrdup(msg, GFP_KERNEL); // 버퍼 복사
+    cmd = strsep(&str, sep); // 앞 :
     cmd[1]='\0';
-    pidstr = strsep(&str, sep);
+    pidstr = strsep(&str, sep); // :뒤
     printk("Command : %s, Pid : %s\n", cmd,pidstr);
 /*
     if((!strcmp(msg,"0")))
@@ -214,7 +222,7 @@ static ssize_t gpio_write(struct file *inode, const char *buff, size_t len, loff
     printk("pid=%d\n",pid);
     if(endptr != NULL)
     {
-        task = pid_task(find_vpid(pid),PIDTYPE_PID);
+        task = pid_task(find_vpid(pid),PIDTYPE_PID); //pid 구조체와 연관된 첫번째 task 구조체를 반환
         if(task == NULL)
         {
             printk("Error: I don't know user pid\n");
@@ -224,12 +232,13 @@ static ssize_t gpio_write(struct file *inode, const char *buff, size_t len, loff
     return count;
 }
 
+// 유저단에서 read 함수 사용하면 작동
 static ssize_t gpio_read(struct file *inode, char *buff, size_t len, loff_t *off)
 {
     short count;
 
     sprintf(msg,"%d",key_value);
-    count = copy_to_user(buff, msg, strlen(msg)+1);
+    count = copy_to_user(buff, msg, strlen(msg)+1); // 유저단에 key_value 값 보내기
 
 
     /*
@@ -259,6 +268,7 @@ static ssize_t gpio_read(struct file *inode, char *buff, size_t len, loff_t *off
     return count;
 }
 
+// 커널 기본 시작단
 static int initModule(void)
 {
     dev_t devno;
@@ -292,7 +302,7 @@ static int initModule(void)
 
     
     // gpio.h에 정의된 gpio_request함수의 사용
-    err = gpio_request(GPIO_LED,"LED");
+    err = gpio_request(GPIO_LED,"LED");//특정핀이 사용 또는 설정되어 있는지 확인해준다.
     
     // GPIO_SW를 IRQ로 설정하기
     err = gpio_request(GPIO_SW, "SW");
@@ -315,7 +325,7 @@ static int initModule(void)
     //4. 물리메모리 번지를 인자로 전달하면 가상메모리 번지를 리턴한다.
 
 
-    gpio_direction_output(GPIO_LED, 0);
+    gpio_direction_output(GPIO_LED, 0); // 해당 핀을 OUTPUT 설정, 0을 출력
     gpio_direction_output(GPIO_LED2, 0);
     //gpio_direction_input(GPIO_SW);
     //gpio_direction_input(GPIO_SW2);
@@ -328,6 +338,7 @@ static int initModule(void)
 	return 0;
 }
 
+// 커널 종료단
 static void __exit cleanupModule(void)
 {
     dev_t devno = MKDEV(GPIO_MAJOR, GPIO_MINOR);

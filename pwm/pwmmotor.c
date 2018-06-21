@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <termio.h>
+#include <wiringPi.h>
 
 #define I2C_DEV "/dev/i2c-1"
 #define CLOCK_FREQ 25000000.0
@@ -30,17 +31,18 @@
 #define LED13_OFF_L 0x3C
 #define LED13_OFF_H 0x4D
 
-//12
-#define SPEED_L_ON_L 0x36
-#define SPEED_L_ON_H 0x37
-#define SPEED_L_OFF_L 0x38
-#define SPEED_L_OFF_H 0x39
+//5
+#define SPEED_L_ON_L 0x1A
+#define SPEED_L_ON_H 0x1B
+#define SPEED_L_OFF_L 0x1C
+#define SPEED_L_OFF_H 0x1D
 
-//11
-#define SPEED_R_ON_L 0x32
-#define SPEED_R_ON_H 0x33
-#define SPEED_R_OFF_L 0x34
-#define SPEED_R_OFF_H 0x35
+//4
+#define SPEED_R_ON_L 0x16
+#define SPEED_R_ON_H 0x17
+#define SPEED_R_OFF_L 0x18
+#define SPEED_R_OFF_H 0x19
+
 
 int fd;
 unsigned char buffer[3]={0};
@@ -275,14 +277,14 @@ int getch(void)
 
 int led_on(unsigned short value)
 {
-    unsigned short time_val=4095;
-    unsigned short max=time_val;
+    unsigned short time_val=4000;
     int i;
     unsigned short wheel,cam,reset,speed;
     // left 205, rigth 409
     unsigned short zero=307, left=150, right=750;
     char key;
-    wheel=zero, cam=zero;
+    char sw=1;
+    wheel=zero, cam=zero, speed=zero;
 
     reg_write16(LED13_ON_L,0);
     reg_write16(LED13_OFF_L,zero);
@@ -294,27 +296,29 @@ int led_on(unsigned short value)
 
     while(key != 'b')
     {
+        printf("speed = %d, wheel = %d, sw = %d\n",speed,wheel,sw);
         //printf("key insert : ");
         key=getch();
         
         switch(key)
         {
+            // wheel 14
             case 'a':
-                if(wheel<left)
+                if(wheel>=left)
                 {
                     wheel-=LED_STEP;
                     reg_write16(LED14_ON_L,0);
                     reg_write16(LED14_OFF_L,wheel);
                 }
-                else if(wheel>left)
+                else if(wheel<left)
                 {
                     printf("wheel left value is Maximum\n");
-                    wheel+=LED_STEP*2;
+                    wheel=left;
                 }
                 break;
 
             case 'd':
-                if(wheel<right)
+                if(wheel<=right)
                 {
                     wheel+=LED_STEP;
                     reg_write16(LED14_ON_L,0);
@@ -323,13 +327,13 @@ int led_on(unsigned short value)
                 else if(wheel>right)
                 {
                     printf("wheel right value is Maximum\n");
-                    wheel-=LED_STEP*2;
+                    wheel=right;
                 }
 
                 break;
             
             // cam up
-            case 'w':
+            case 65:
                 if(cam<right)
                 {
                     cam+=LED_STEP;
@@ -345,7 +349,7 @@ int led_on(unsigned short value)
                 break;
         
             // cam down
-            case 's':
+            case 66:
                 if(cam>left)
                 {
                     cam-=LED_STEP;
@@ -361,7 +365,7 @@ int led_on(unsigned short value)
 
             //reset
             case 'r':
-                cam=zero,wheel,speed=zero;
+                cam=zero,wheel=zero,speed=zero;
 
                 reg_write16(LED13_ON_L,0);
                 reg_write16(LED13_OFF_L,zero);
@@ -378,50 +382,108 @@ int led_on(unsigned short value)
 
             case 'f':
                 reg_write8(MODE1, 0x10);
+                printf("sleep\n");
                 break;
 
             case 'o':
                 reg_write8(MODE1, 0x80);
+                printf("wake up\n");
                 break;
             
-            // speed up ^
-            case 65:
-                if(speed<time_val)
+            case 'q':
+                if(sw==0)
                 {
-                    speed+=LED_STEP;
-                    reg_write16(SPEED_R_ON_L,0);
-                    reg_write16(SPEED_R_OFF_L,speed);
-                    reg_write16(SPEED_L_ON_L,0);
-                    reg_write16(SPEED_L_OFF_L,speed);
+                    sw=1;
+                    digitalWrite(0,0);
+                    digitalWrite(2,0);
                 }
-                else if(speed>time_val)
+                else if(sw==1)
                 {
-                    printf("speed up value is Maximum\n");
-                    speed=time_val-LED_STEP;
+                    sw=0;
+                    digitalWrite(0,1);
+                    digitalWrite(2,1);
+                }
+
+                break;
+            // sw=1 forword, sw=0 back
+            // speed up ^
+            case 'w':
+                if(sw==1)
+                {
+                    if(zero<=speed && speed<=time_val)
+                    {
+                        speed+=LED_STEP;
+                    }
+                
+                    else if(speed>time_val)
+                    {
+                        printf("speed up value is Maximum\n");
+                        speed=time_val;
+                    }
+                }
+                else if(sw==0)
+                {
+                    if(zero<speed)
+                    {
+                        speed-=LED_STEP;
+                    }
+                    else
+                    {
+                        sw=1;
+                        speed=zero;
+                    }
                 }
 
                 break;
         
-            // speed  down
-            case 66:
-                if(speed>0)
+            // speed down
+            case 's':
+                if(sw == 1)
                 {
-                    speed-=LED_STEP;
-                    reg_write16(SPEED_R_ON_L,0);
-                    reg_write16(SPEED_R_OFF_L,speed);
-                    reg_write16(SPEED_L_ON_L,0);
-                    reg_write16(SPEED_L_OFF_L,speed);
+                    if(speed>=zero)
+                    {
+                        speed-=LED_STEP;
+                            if(speed<zero)
+                                sw=0;
+                    }
                 }
-                else if(speed<0)
+                else if(sw==0)
                 {
-                    printf("speed down value is Maximum\n");
-                    speed+=LED_STEP;
+                    printf("go to back\n");
+                    if(speed<=time_val)
+                    {
+                        speed+=LED_STEP;
+                    }
+                    else if(speed>time_val)
+                    {
+                        printf("speed up value is Maximum\n");
+                        speed=time_val;
+                    }
                 }
                 break;
 
            default: ;
         }
-
+        
+        //wheel
+        //reg_write16(LED14_ON_L,0);
+        //reg_write16(LED14_OFF_L,wheel);
+        // speed
+        reg_write16(SPEED_R_ON_L,0);
+        reg_write16(SPEED_R_OFF_L,speed);
+        reg_write16(SPEED_L_ON_L,0);
+        reg_write16(SPEED_L_OFF_L,speed);
+                
+        if(sw==1)
+        {
+            digitalWrite(0,0);
+            digitalWrite(2,0);
+        }
+        else if(sw==0)
+        {
+            digitalWrite(0,1);
+            digitalWrite(2,1);
+        }
     }
     
 }
@@ -429,6 +491,10 @@ int led_on(unsigned short value)
 int main(void)
 {
     int value = 2047;
+    
+    wiringPiSetup();
+    pinMode(0, OUTPUT);   
+    pinMode(2, OUTPUT);   
 
     if((fd=open(I2C_DEV,O_RDWR))<0)
     { 
@@ -441,6 +507,7 @@ int main(void)
         printf("Failed to acquire bus access and/or talk to slave\n");
         return -1;
     }
+   
 
     pca9685_restart();
     pca9685_freq();
